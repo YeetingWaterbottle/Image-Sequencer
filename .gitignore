@@ -1,6 +1,14 @@
 # Project Generated Files
 concat.txt
 output.mp4
+test-images/
+
+# Nuitka Compiler
+main.build/
+main.dist/
+main.onefile-build/
+main.cmd
+main.exe
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

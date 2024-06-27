@@ -1,13 +1,12 @@
 import dearpygui.dearpygui as dpg
 import os
 import pathlib
-import tkinter as tk
-from tkinter import filedialog
+import xdialog
 
 import image_sequencer
 
-
 image_sequencer = image_sequencer.ImageSequencer()
+
 
 def select_files(selection_type: str) -> None:
     """
@@ -19,39 +18,37 @@ def select_files(selection_type: str) -> None:
     Raises:
         ValueError: If "selection_type" variable does not match the possible actions
     """
-    root = tk.Tk()
-    root.withdraw()
 
-    append: bool = dpg.get_value("file_append_checkbox")
+    append_files: bool = dpg.get_value("file_append_checkbox")
 
     file_paths = []
 
-    try:
-        if selection_type == "individual":
-            file_paths = filedialog.askopenfilenames()
+    if selection_type == "individual":
+        file_paths = xdialog.open_file(
+            "Select Images",
+            filetypes=[("Image Files", "*.png *.jpg *.jpeg")],
+            multiple=True,
+        )
 
-        elif selection_type == "folder":
-            folder_path = filedialog.askdirectory(mustexist=True)
-            if folder_path != "":
-                file_paths = [
-                    joined_path
-                    for f in os.listdir(folder_path)
-                    if os.path.isfile(joined_path := os.path.join(folder_path, f))
-                ]
+    elif selection_type == "folder":
+        folder_path = xdialog.directory("Select Image Folder")
+        if os.path.isdir(folder_path):
+            file_paths = [
+                joined_path
+                for f in os.listdir(folder_path)
+                if os.path.isfile(joined_path := os.path.join(folder_path, f))
+            ]
 
-        elif selection_type == "clear":
-            file_paths = []
-            append = False
+    elif selection_type == "clear":
+        file_paths = []
+        append_files = False
 
-        else:
-            raise ValueError("Invalid selection_type parameter provided")
-
-    finally:
-        root.destroy()
+    else:
+        raise ValueError("Invalid selection_type parameter provided")
 
     formatted_paths = [str(pathlib.Path(file).resolve()) for file in file_paths]
 
-    if append:
+    if append_files:
         existing_files = dpg.get_item_configuration("file_list")["items"]
         formatted_paths = existing_files + formatted_paths
 
@@ -60,6 +57,41 @@ def select_files(selection_type: str) -> None:
     update_file_label()
 
     image_sequencer.set_files(formatted_paths)
+
+
+def sort_input_files() -> None:
+    """
+    Sorts the input files based on the filename
+    """
+    files: list[str] = dpg.get_item_configuration("file_list")["items"]
+
+    dpg.configure_item("file_list", items=sorted(files))
+
+
+def remove_selected_file() -> None:
+    """
+    Removes the selected item in file list
+    """
+    files: list[str] = dpg.get_item_configuration("file_list")["items"]
+    selected_file: str = dpg.get_value("file_list")
+
+    try:
+        file_index = files.index(selected_file)
+        files.pop(file_index)  # Removes selected file
+        dpg.configure_item("file_list", items=files)  # Sets updated list
+
+        if file_index >= len(files):  # If removed item is last in list
+            file_index -= 1  # Decrement index so last item would be selected
+
+        dpg.set_value(
+            "file_list", files[file_index]
+        )  # Sets the selected item to be below the removed item
+    except ValueError:
+        print("Selected file not found")
+    except IndexError:
+        print("Selected index not found")
+    except Exception as e:
+        print(f"Unknown error occured: {e}")
 
 
 def update_file_label() -> None:
@@ -146,6 +178,12 @@ def generate_action(generate_target: str) -> None:
 
 dpg.create_context()
 
+# Adding custom fonts
+with dpg.font_registry():
+    default_font = dpg.add_font("assets/Ubuntu-Regular.ttf", 16)
+
+
+# Start of GUI
 with dpg.window(tag="root"):
     # File list buttons
     with dpg.collapsing_header(label="Import Files", default_open=True):
@@ -176,6 +214,10 @@ with dpg.window(tag="root"):
             with dpg.group():
                 dpg.add_text("No File Selected", tag="file_count_label")
                 dpg.add_text("Video Length: 0.0(s)", tag="video_length_label")
+                dpg.add_button(label="Sort Files", callback=sort_input_files)
+                dpg.add_button(
+                    label="Remove Selected File", callback=remove_selected_file
+                )
 
     # Output parameters
     with dpg.collapsing_header(label="Output Parameters", default_open=True):
@@ -273,6 +315,10 @@ with dpg.window(tag="root"):
                     label="Generate Concat. File",
                     callback=lambda: generate_action("concat"),
                 )
+
+    # Set fonts
+    dpg.bind_font(default_font)
+
 
 # Application themes
 with dpg.theme() as global_theme:

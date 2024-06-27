@@ -125,7 +125,6 @@ class ImageSequencer:
         Returns:
             list[str]: The ffmpeg command as a list of strings.
         """
-        self.generate_concat()
         ffmpeg_command = [
             "ffmpeg",
             "-f",
